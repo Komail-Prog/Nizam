@@ -146,29 +146,125 @@ def strip_preamble(text: str) -> str:
     return text[idx:]
 
 
-if __name__ == "__main__":
-    body = strip_preamble(load_text())
-    lines = body.split("\n")
-
+def collect_blocks(lines):
+    """Walk lines, attach each article to its bab, and gather its body text."""
+    heads = []
     current_bab = None
-    articles, babs = [], []
-
     for i, line in enumerate(lines):
         h = detect_heading(line)
         if h is None:
             continue
         if h["type"] == "bab":
             current_bab = h
-            babs.append(h)
         else:
-            articles.append({**h, "bab": current_bab["number"] if current_bab else None,
-                             "line": i})
+            heads.append({**h, "bab": current_bab["number"], "start": i})
 
-    print(f"Babs detected     : {len(babs)}")
-    print(f"Articles detected : {len(articles)}")
-    print(f"Mukarrar articles : {[a['number'] for a in articles if a['mukarrar']]}")
-    print(f"Renumbered        : {[(a['number'], a['former']) for a in articles if a['former']]}")
-    print(f"Articles w/o bab  : {[a['number'] for a in articles if a['bab'] is None]}")
-    print("-" * 50)
-    print("FIRST 5:", [(a['number'], a['bab']) for a in articles[:5]])
-    print("LAST 5 :", [(a['number'], a['bab']) for a in articles[-5:]])
+    blocks = []
+    # Build a set of ALL heading line indices (articles AND babs) to bound bodies
+    heading_lines = set()
+    for i, line in enumerate(lines):
+        if detect_heading(line) is not None:
+            heading_lines.add(i)
+
+    blocks = []
+    for k, head in enumerate(heads):
+        start = head["start"]
+        # body ends at the next heading line of ANY kind (article or bab)
+        end = start + 1
+        while end < len(lines) and end not in heading_lines:
+            end += 1
+        body_lines = lines[start + 1:end]
+
+        marker = None
+        text_parts = []
+        for bl in body_lines:
+            s = bl.strip()
+            if not s:
+                continue
+            if s in _MARKERS:
+                if marker is None:
+                    marker = s
+                continue
+            text_parts.append(s)
+
+        blocks.append({
+            "number": head["number"],
+            "former": head["former"],
+            "mukarrar": head["mukarrar"],
+            "bab": head["bab"],
+            "marker": marker,
+            "text": " ".join(text_parts),
+            "start": start,
+        })
+    return blocks
+    
+
+
+def resolve_conflicts(blocks):
+    """Keep the current version of each article number; record exclusions."""
+    from collections import defaultdict
+    by_key = defaultdict(list)
+    for b in blocks:
+        # mukarrar articles get their own identity, never conflict with base
+        key = (b["number"], b["mukarrar"])
+        by_key[key].append(b)
+
+    kept, excluded = [], []
+    for key, group in by_key.items():
+        if len(group) == 1:
+            kept.append(group[0])
+            continue
+        # conflict: prefer مرفق marker, else prefer the renumbered (former set)
+        winner = None
+        for b in group:
+            if b["marker"] == "مرفق المادة":
+                winner = b
+                break
+        if winner is None:
+            for b in group:
+                if b["former"] is not None:
+                    winner = b
+                    break
+        if winner is None:
+            winner = group[0]  # fallback, should not happen here
+        kept.append(winner)
+        for b in group:
+            if b is not winner:
+                excluded.append(b)
+    return kept, excluded
+
+def clean_marfaq_text(block):
+    """For مرفق articles, extract the quoted statutory text; keep decree note aside."""
+    if block["marker"] != "مرفق المادة":
+        return block
+    text = block["text"]
+    first = text.find('"')
+    last = text.rfind('"')
+    if first != -1 and last != -1 and last > first:
+        quoted = text[first + 1:last].strip()
+        note = (text[:first] + " " + text[last + 1:]).strip()
+        block["text"] = quoted
+        block["amendment_note"] = note
+    return block
+
+
+if __name__ == "__main__":
+    body = strip_preamble(load_text())
+    lines = body.split("\n")
+    blocks = collect_blocks(lines)
+    kept, excluded = resolve_conflicts(blocks)
+    kept = [clean_marfaq_text(b) for b in kept]
+    kept.sort(key=lambda b: b["start"])
+
+    print(f"Kept: {len(kept)} | Excluded: {len(excluded)}")
+    empty = [b["number"] for b in kept if not b["text"].strip()]
+    print(f"Empty text: {empty}")
+    print("-" * 60)
+    for b in [x for x in kept if x["marker"] == "مرفق المادة"]:
+        num = f"{b['number']}{' مكرر' if b['mukarrar'] else ''}"
+        print(f"### المادة {num}")
+        print(f"TEXT : {b['text'][:200]}")
+        print(f"NOTE : {b.get('amendment_note', '—')[:80]}")
+        print()
+    a235 = next(b for b in kept if b["number"] == 235 and not b["mukarrar"])
+    print("235 ends with:", repr(a235["text"][-40:]))
