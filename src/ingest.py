@@ -234,37 +234,105 @@ def resolve_conflicts(blocks):
     return kept, excluded
 
 def clean_marfaq_text(block):
-    """For مرفق articles, extract the quoted statutory text; keep decree note aside."""
-    if block["marker"] != "مرفق المادة":
-        return block
+    """Extract quoted statutory text from decree-added articles.
+
+    Applies whenever the body embeds the actual text inside quotes following
+    a decree preamble ("... بالنص الآتي: \"...\""), regardless of marker,
+    since مكرر articles may lack a separate مرفق المادة marker line.
+    """
     text = block["text"]
+    # Only act if it looks like a decree-wrapper: has an addition phrase + quotes
+    is_wrapper = ("اُضيفت" in text or "أُضيفت" in text or "إضافة مادة" in text)
     first = text.find('"')
     last = text.rfind('"')
-    if first != -1 and last != -1 and last > first:
+    if is_wrapper and first != -1 and last != -1 and last > first:
         quoted = text[first + 1:last].strip()
         note = (text[:first] + " " + text[last + 1:]).strip()
-        block["text"] = quoted
-        block["amendment_note"] = note
+        if quoted:                       # never blank out the article
+            block["text"] = quoted
+            block["amendment_note"] = note
     return block
+
+
+import json
+
+
+def build_records(kept):
+    """Convert kept blocks into final article records with clean metadata."""
+    ORD_WORDS = {
+        1: "الأولى", 2: "الثانية", 3: "الثالثة", 4: "الرابعة", 5: "الخامسة",
+    }
+    records = []
+    for b in kept:
+        suffix = "_mukarrar" if b["mukarrar"] else ""
+        display = f"المادة {b['number']}" + (" مكرر" if b["mukarrar"] else "")
+        rec = {
+            "article_id": f"art_{b['number']:03d}{suffix}",
+            "number": b["number"],
+            "is_mukarrar": b["mukarrar"],
+            "former_number": b["former"],
+            "display_name": display,
+            "bab_number": b["bab"],
+            "text": b["text"].strip(),
+            "char_count": len(b["text"].strip()),
+        }
+        if b.get("amendment_note"):
+            rec["amendment_note"] = b["amendment_note"].strip()
+        records.append(rec)
+    return records
+
+
+BAB_TITLES = {}
+
+
+def collect_bab_titles(lines):
+    titles = {}
+    current = None
+    for line in lines:
+        h = detect_heading(line)
+        if h and h["type"] == "bab":
+            titles[h["number"]] = h["title"]
+    return titles
 
 
 if __name__ == "__main__":
     body = strip_preamble(load_text())
     lines = body.split("\n")
+
     blocks = collect_blocks(lines)
     kept, excluded = resolve_conflicts(blocks)
     kept = [clean_marfaq_text(b) for b in kept]
     kept.sort(key=lambda b: b["start"])
 
-    print(f"Kept: {len(kept)} | Excluded: {len(excluded)}")
-    empty = [b["number"] for b in kept if not b["text"].strip()]
-    print(f"Empty text: {empty}")
-    print("-" * 60)
-    for b in [x for x in kept if x["marker"] == "مرفق المادة"]:
-        num = f"{b['number']}{' مكرر' if b['mukarrar'] else ''}"
-        print(f"### المادة {num}")
-        print(f"TEXT : {b['text'][:200]}")
-        print(f"NOTE : {b.get('amendment_note', '—')[:80]}")
-        print()
-    a235 = next(b for b in kept if b["number"] == 235 and not b["mukarrar"])
-    print("235 ends with:", repr(a235["text"][-40:]))
+    bab_titles = collect_bab_titles(lines)
+    records = build_records(kept)
+    for r in records:
+        r["bab_title"] = bab_titles.get(r["bab_number"], "")
+
+    out_dir = Path("data/processed")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    (out_dir / "articles.json").write_text(
+        json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    excluded_records = [{
+        "number": b["number"], "reason": "old-numbering duplicate (superseded)",
+        "marker": b["marker"], "text_preview": b["text"][:80],
+    } for b in excluded]
+    (out_dir / "excluded.json").write_text(
+        json.dumps(excluded_records, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    # ---- Phase 1 transition gate: sample of 10 articles with correct numbers ----
+    print(f"✅ Wrote {len(records)} articles → data/processed/articles.json")
+    print(f"✅ Wrote {len(excluded_records)} excluded → data/processed/excluded.json")
+    print("=" * 60)
+    print("SAMPLE OF 10 ARTICLES:")
+    sample_nums = [1, 2, 84, 85, 98, 109, 165, "79_mukarrar", 234, 245]
+    for r in records:
+        tag = f"{r['number']}_mukarrar" if r["is_mukarrar"] else r["number"]
+        if tag in sample_nums or r["number"] in sample_nums and not r["is_mukarrar"]:
+            print(f"[{r['display_name']}] (باب {r['bab_number']}: {r['bab_title']}) "
+                  f"[{r['char_count']} حرف]")
+            print(f"   {r['text'][:70]}...")
