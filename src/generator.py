@@ -6,6 +6,7 @@ from google import genai
 from google.genai import errors as genai_errors
 from dotenv import load_dotenv
 from retriever import retrieve
+from google.genai import types
 
 load_dotenv()
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -26,6 +27,46 @@ SYSTEM_INSTRUCTION = """أنت مساعد متخصص في نظام العمل ا
 أعِد ردك حصراً بصيغة JSON صالحة بهذا الشكل، دون أي نص قبله أو بعده ودون علامات ```:
 {"can_answer": true/false, "used_articles": [أرقام], "answer": "نص الإجابة"}"""
 
+# ==================== المرحلة 4: أداة حساب مكافأة نهاية الخدمة ====================
+
+EOS_TOOL = types.Tool(
+    function_declarations=[
+        types.FunctionDeclaration(
+            name="calculate_end_of_service",
+            description=(
+                "تحسب مكافأة نهاية الخدمة وفق نظام العمل السعودي (المواد 84، 85، 87). "
+                "استدعِ هذه الأداة فقط عندما يطلب المستخدم حساب مبلغ المكافأة ويوفّر "
+                "الأجر وعدد سنوات الخدمة. لا تستدعها للأسئلة العامة عن أحكام المكافأة "
+                "التي لا تتضمن أرقاماً للحساب."
+            ),
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "last_wage": types.Schema(
+                        type=types.Type.NUMBER,
+                        description="الأجر الأخير للعامل بالريال (رقم واحد).",
+                    ),
+                    "years_of_service": types.Schema(
+                        type=types.Type.NUMBER,
+                        description="عدد سنوات الخدمة (يقبل الكسور، مثل 7.5).",
+                    ),
+                    "end_reason": types.Schema(
+                        type=types.Type.STRING,
+                        enum=["termination", "resignation", "resignation_special"],
+                        description=(
+                            "سبب انتهاء العلاقة: "
+                            "'termination' إذا أنهى صاحب العمل العقد أو لم يُذكر السبب. "
+                            "'resignation' إذا استقال العامل بإرادته. "
+                            "'resignation_special' إذا كانت الاستقالة لقوة قاهرة، "
+                            "أو العاملة تركت خلال 6 أشهر من الزواج أو 3 أشهر من الوضع."
+                        ),
+                    ),
+                },
+                required=["last_wage", "years_of_service", "end_reason"],
+            ),
+        )
+    ]
+)
 
 def build_context(articles: list) -> str:
     """يحوّل المواد المسترجَعة إلى نص يُمرَّر للنموذج."""
@@ -88,8 +129,93 @@ def _normalize_article_numbers(used: list) -> list:
             normalized.append(int(match.group()))
     return normalized
 
+from eos_calculator import calculate_eos  # ضعه مع الاستيرادات فوق لاحقاً
+
+# نصوص المواد المرتبطة بالمكافأة — تُجلب من retrieve الرسمي لا من Gemini (نفس مبدأ المرحلة 3)
+def _fetch_eos_citations(article_numbers: list) -> list:
+    """يجلب نص كل مادة مكافأة من retrieve الرسمي، بضبط بالرقم."""
+    citations = []
+    for n in article_numbers:
+        hits = retrieve(f"المادة {n} مكافأة نهاية الخدمة", k=3)
+        match = next((h for h in hits if h["article_number"] == n), None)
+        if match:
+            citations.append({"article_number": n, "text": match["text"]})
+    return citations
+
+
+def _format_eos_answer(calc: dict) -> str:
+    """يصيغ ردّاً عربياً واضحاً من ناتج calculate_eos — بلا نداء Gemini."""
+    final = round(calc["final"], 2)
+    base = round(calc["base"], 2)
+    months = round(calc["months_of_base"], 2)
+    wage = calc["inputs"]["last_wage"]
+    years = calc["inputs"]["years_of_service"]
+
+    lines = [
+        "🧮 **نتيجة استرشادية** (وليست استشارة قانونية):",
+        "",
+        f"بناءً على أجر أخير قدره {wage:,.0f} ريال، ومدة خدمة {years} سنة:",
+        f"• الأساس (المادة 84): {months} شهر × الأجر = {base:,.2f} ريال",
+        f"• {calc['factor_reason']}",
+        f"• **مكافأة نهاية الخدمة المستحقة (استرشادياً): {final:,.2f} ريال**",
+    ]
+    return "\n".join(lines)
+
+
+def answer_with_tool(query: str, k: int = 3, max_retries: int = 3) -> dict:
+    """المسار الحسابي: يعطي Gemini الأداة، يلتقط الاستدعاء، يحسب محلياً، يصيغ الرد.
+    يرجع None إذا لم يستدعِ Gemini الأداة (أي أن السؤال ليس حسابياً)."""
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=MODEL,
+                contents=query,
+                config=genai.types.GenerateContentConfig(
+                    tools=[EOS_TOOL],
+                    temperature=0.0,
+                ),
+            )
+            # هل استدعى Gemini الأداة؟
+            parts = response.candidates[0].content.parts
+            fn_call = next(
+                (p.function_call for p in parts if getattr(p, "function_call", None)),
+                None,
+            )
+            if fn_call is None:
+                return None  # لم يستدعِ الأداة → ليس سؤالاً حسابياً
+
+            args = dict(fn_call.args)
+            calc = calculate_eos(
+                last_wage=float(args["last_wage"]),
+                years_of_service=float(args["years_of_service"]),
+                end_reason=args["end_reason"],
+            )
+            citations = _fetch_eos_citations(calc["articles"])
+            return {
+                "answered": True,
+                "answer": _format_eos_answer(calc),
+                "citations": citations,
+                "tool_used": "calculate_end_of_service",
+                "tool_args": args,
+            }
+        except (genai_errors.APIError, Exception) as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(f"  ⚠️ محاولة {attempt + 1} فشلت ({type(e).__name__})، إعادة بعد {wait}s…")
+                time.sleep(wait)
+
+    raise RuntimeError(f"فشل نداء الأداة بعد {max_retries} محاولات: {last_error}")
+
 def answer_gated(query: str, k: int = 3) -> dict:
-    """الواجهة الحقيقية للمرحلة 3: تطبّق الحرّاس الثلاثة وتُرجع نتيجة نهائية."""
+    """الواجهة الموحّدة: تجرّب الأداة الحسابية أولاً، ثم البوابة ثلاثية الحرّاس."""
+    # المسار الحسابي (المرحلة 4): إن استدعى Gemini الأداة، نرجع نتيجتها فوراً
+    tool_result = answer_with_tool(query, k=k)
+    if tool_result is not None:
+        return tool_result
+
+    # المسار العادي (المرحلة 3): توليد مقيّد بالاستشهاد + بوابة رفض
     result = answer(query, k=k)
     raw = result["raw"]
     articles = result["articles"]
