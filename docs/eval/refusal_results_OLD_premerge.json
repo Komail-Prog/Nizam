@@ -1,0 +1,51 @@
+{
+  "Q29": {
+    "id": "Q29",
+    "question": "كم ضريبة الدخل على راتب الموظف في السعودية؟",
+    "refused": true,
+    "reason": "llm_cannot_answer",
+    "leaked_answer": null
+  },
+  "Q30": {
+    "id": "Q30",
+    "question": "ما عقوبة تجاوز السرعة على الطريق السريع؟",
+    "refused": true,
+    "reason": "llm_cannot_answer",
+    "leaked_answer": null
+  },
+  "Q31": {
+    "id": "Q31",
+    "question": "كيف أرفع دعوى إيجارية ضد مالك العقار؟",
+    "refused": true,
+    "reason": "llm_cannot_answer",
+    "leaked_answer": null
+  },
+  "Q32": {
+    "id": "Q32",
+    "question": "ما شروط الحصول على تأشيرة سياحية للسعودية؟",
+    "refused": true,
+    "reason": "llm_cannot_answer",
+    "leaked_answer": null
+  },
+  "Q33": {
+    "id": "Q33",
+    "question": "كم نسبة مساهمة التأمينات الاجتماعية من الراتب؟",
+    "refused": true,
+    "reason": "llm_cannot_answer",
+    "leaked_answer": null
+  },
+  "Q34": {
+    "id": "Q34",
+    "question": "ما راتب مهندس البرمجيات المبتدئ في السوق السعودي؟",
+    "refused": true,
+    "reason": "llm_cannot_answer",
+    "leaked_answer": null
+  },
+  "Q35": {
+    "id": "Q35",
+    "question": "هل يحق لي استرداد ضريبة القيمة المضافة كسائح؟",
+    "refused": true,
+    "reason": "llm_cannot_answer",
+    "leaked_answer": null
+  }
+}

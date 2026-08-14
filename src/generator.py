@@ -284,3 +284,125 @@ if __name__ == "__main__":
         _print_result(q, answer_gated(q))
         if i < len(unanswerable) - 1:
             time.sleep(DELAY)
+
+# ==================== المرحلة 5: الدمج — نداء واحد بدل نداءين ====================
+
+MERGED_SYSTEM_INSTRUCTION = """أنت مساعد متخصص في نظام العمل السعودي فقط.
+
+لديك أداة واحدة: calculate_end_of_service لحساب مكافأة نهاية الخدمة.
+- إذا طلب المستخدم حساب مبلغ مكافأة نهاية الخدمة وذكر الأجر وعدد سنوات الخدمة، استدعِ الأداة.
+- لا تستدعِ الأداة للأسئلة العامة عن أحكام المكافأة التي لا تتضمن أرقاماً للحساب.
+
+لأي سؤال آخر (لا يستدعي الأداة)، يُعطى لك سؤال المستخدم ومجموعة من المواد النظامية المسترجَعة.
+مهمتك: الإجابة بالاعتماد على هذه المواد وحدها، دون أي معرفة خارجية.
+
+قواعد صارمة للإجابة النصية:
+- أجب فقط مما ورد في المواد المعطاة. لا تستخدم أي معلومة من خارجها.
+- إذا لم تُجب أيٌّ من المواد المعطاة عن السؤال، اجعل can_answer=false ولا تحاول التخمين.
+- في used_articles ضع أرقام المواد التي استندت إليها فعلاً فقط (من المواد المعطاة).
+- اكتب الإجابة بالعربية الفصحى، موجزة ودقيقة.
+
+عندما لا تستدعي الأداة، أعِد ردك حصراً بصيغة JSON صالحة بهذا الشكل، دون أي نص قبله أو بعده ودون علامات ```:
+{"can_answer": true/false, "used_articles": [أرقام], "answer": "نص الإجابة"}"""
+
+def _strip_json_fence(text: str) -> str:
+    """يزيل غلاف markdown (```json ... ```) إن وُجد، ويُرجع JSON الصرف.
+    يعمل أيضاً لو كان النص JSON صرفاً بلا غلاف (يُرجعه كما هو بعد strip)."""
+    t = text.strip()
+    if t.startswith("```"):
+        # أزل أول سطر (```json أو ```) وآخر سطر (```)
+        lines = t.split("\n")
+        # أول سطر هو السياج الافتتاحي
+        lines = lines[1:]
+        # آخر سطر هو السياج الختامي إن كان ```
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        t = "\n".join(lines).strip()
+    return t
+
+def answer_gated_merged(query: str, k: int = 3, max_retries: int = 3) -> dict:
+    """الواجهة الموحّدة المدمجة (المرحلة 5): نداء Gemini واحد.
+    يعطي النموذج الأداة + تعليمات JSON + المواد المسترجَعة معاً.
+    يفرّع على وجود function_call:
+      - إن استدعى الأداة → حساب محلي (مسار المرحلة 4).
+      - وإلا → JSON + البوابة ثلاثية الحرّاس (مسار المرحلة 3).
+    لا تحذف answer_gated القديمة — هذه نسخة موازية للاختبار قبل التبديل."""
+    articles = retrieve(query, k=k)
+    context = build_context(articles)
+    user_prompt = f"""السؤال: {query}
+
+المواد المسترجَعة:
+{context}"""
+
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=MODEL,
+                contents=user_prompt,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=MERGED_SYSTEM_INSTRUCTION,
+                    tools=[EOS_TOOL],
+                    temperature=0.0,
+                    # ملاحظة: لا نضع response_mime_type=json هنا،
+                    # لأن وضع الأداة يتعارض معه. نتحقق من JSON يدوياً أدناه.
+                ),
+            )
+            parts = response.candidates[0].content.parts
+
+            # الفرع أ: هل استدعى الأداة؟
+            fn_call = next(
+                (p.function_call for p in parts if getattr(p, "function_call", None)),
+                None,
+            )
+            if fn_call is not None:
+                args = dict(fn_call.args)
+                calc = calculate_eos(
+                    last_wage=float(args["last_wage"]),
+                    years_of_service=float(args["years_of_service"]),
+                    end_reason=args["end_reason"],
+                )
+                citations = _fetch_eos_citations(calc["articles"])
+                return {
+                    "answered": True,
+                    "answer": _format_eos_answer(calc),
+                    "citations": citations,
+                    "tool_used": "calculate_end_of_service",
+                    "tool_args": args,
+                    "path": "tool",
+                }
+
+            # الفرع ب: نص JSON → البوابة ثلاثية الحرّاس
+            text = next((p.text for p in parts if getattr(p, "text", None)), None)
+            if text is None:
+                raise ValueError("لا function_call ولا نص في رد Gemini")
+            raw = json.loads(_strip_json_fence(text))
+
+            retrieved_map = {a["article_number"]: a for a in articles}
+
+            if not raw.get("can_answer", False):
+                return {"answered": False, "message": REFUSAL_MESSAGE,
+                        "reason": "llm_cannot_answer", "path": "json"}
+
+            used = _normalize_article_numbers(raw.get("used_articles", []))
+            if not used:
+                return {"answered": False, "message": REFUSAL_MESSAGE,
+                        "reason": "no_articles_cited", "path": "json"}
+
+            hallucinated = [n for n in used if n not in retrieved_map]
+            if hallucinated:
+                return {"answered": False, "message": REFUSAL_MESSAGE,
+                        "reason": f"hallucinated_articles:{hallucinated}", "path": "json"}
+
+            citations = [{"article_number": n, "text": retrieved_map[n]["text"]} for n in used]
+            return {"answered": True, "answer": raw["answer"],
+                    "citations": citations, "path": "json"}
+
+        except (genai_errors.APIError, json.JSONDecodeError, Exception) as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(f"  ⚠️ محاولة {attempt + 1} فشلت ({type(e).__name__})، إعادة بعد {wait}s…")
+                time.sleep(wait)
+
+    raise RuntimeError(f"فشل نداء الدمج بعد {max_retries} محاولات: {last_error}")

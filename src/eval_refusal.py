@@ -10,7 +10,7 @@ import json
 import os
 import sys
 import time
-from generator import answer_gated
+from generator import answer_gated_merged
 
 GOLDEN = os.path.join("docs", "eval", "golden_questions.json")
 OUT = os.path.join("docs", "eval", "refusal_results.json")
@@ -50,7 +50,7 @@ def main(target_ids):
     for i, qid in enumerate(todo):
         q = golden[qid]
         print(f"[{qid}] {q['question']}")
-        res = answer_gated(q["question"])
+        res = answer_gated_merged(q["question"])
         refused = (res.get("answered") is False)
         record = {
             "id": qid,
