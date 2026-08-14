@@ -1,0 +1,348 @@
+[
+  {
+    "id": "Q01",
+    "category": "answerable",
+    "question": "ما اللغة الواجب استعمالها في عقود العمل والسجلات؟",
+    "expected_display_names": [
+      "المادة 9"
+    ],
+    "notes": "اللغة العربية"
+  },
+  {
+    "id": "Q02",
+    "category": "answerable",
+    "question": "هل يجوز لغير المواطن ممارسة العمل بدون توافر شروط؟",
+    "expected_display_names": [
+      "المادة 3"
+    ],
+    "notes": "العمل حق للمواطن"
+  },
+  {
+    "id": "Q03",
+    "category": "answerable",
+    "question": "بأي تقويم تُحسب المدد والمواعيد في نظام العمل؟",
+    "expected_display_names": [
+      "المادة 10"
+    ],
+    "notes": "التقويم الهجري"
+  },
+  {
+    "id": "Q04",
+    "category": "answerable",
+    "question": "ماذا يحدث لعقود العمل إذا انتقلت ملكية المنشأة لمالك جديد؟",
+    "expected_display_names": [
+      "المادة 18"
+    ],
+    "notes": "استمرار العقود"
+  },
+  {
+    "id": "Q05",
+    "category": "answerable",
+    "question": "هل تُعد مستحقات العامل ديوناً ممتازة؟",
+    "expected_display_names": [
+      "المادة 19"
+    ],
+    "notes": "ديون ممتازة درجة أولى"
+  },
+  {
+    "id": "Q06",
+    "category": "answerable",
+    "question": "من يُستثنى من تطبيق أحكام نظام العمل؟",
+    "expected_display_names": [
+      "المادة 7"
+    ],
+    "notes": "أفراد أسرة صاحب العمل"
+  },
+  {
+    "id": "Q07",
+    "category": "answerable",
+    "question": "ما البيانات التي يبلغها صاحب العمل لمكتب العمل عند بدء العمل؟",
+    "expected_display_names": [
+      "المادة 15"
+    ],
+    "notes": "بيانات المنشأة"
+  },
+  {
+    "id": "Q08",
+    "category": "answerable",
+    "question": "هل يجب على صاحب العمل تشغيل المعوقين؟",
+    "expected_display_names": [
+      "المادة 28"
+    ],
+    "notes": "25 عاملاً فأكثر"
+  },
+  {
+    "id": "Q09",
+    "category": "answerable",
+    "question": "ما حكم الشرط الذي يخالف أحكام نظام العمل؟",
+    "expected_display_names": [
+      "المادة 8"
+    ],
+    "notes": "يبطل كل شرط مخالف"
+  },
+  {
+    "id": "Q10",
+    "category": "answerable",
+    "question": "هل يجب على صاحب العمل تعيين من يمثله إذا لم يمارس العمل بنفسه؟",
+    "expected_display_names": [
+      "المادة 16"
+    ],
+    "notes": "تعيين مسؤول ممثل"
+  },
+  {
+    "id": "Q11",
+    "category": "answerable",
+    "question": "كم مدة إجازة الوضع للعاملة؟",
+    "expected_display_names": [
+      "المادة 151"
+    ],
+    "notes": "إجازة الوضع"
+  },
+  {
+    "id": "Q12",
+    "category": "answerable",
+    "question": "ما الحد الأقصى لساعات العمل اليومية للعامل؟",
+    "expected_display_names": [
+      "المادة 98"
+    ],
+    "notes": "8 ساعات"
+  },
+  {
+    "id": "Q13",
+    "category": "answerable",
+    "question": "كم يوماً إجازة سنوية يستحق العامل في السنة؟",
+    "expected_display_names": [
+      "المادة 109"
+    ],
+    "notes": "21 يوم - false refusal مرصود"
+  },
+  {
+    "id": "Q14",
+    "category": "answerable",
+    "question": "كم يستحق العامل أجراً عن ساعة العمل الإضافية؟",
+    "expected_display_names": [
+      "المادة 107"
+    ],
+    "notes": "الأجر الإضافي +50%"
+  },
+  {
+    "id": "Q15",
+    "category": "answerable",
+    "question": "ما مدة فترة التجربة القصوى للعامل؟",
+    "expected_display_names": [
+      "المادة 54"
+    ],
+    "notes": "فترة التجربة"
+  },
+  {
+    "id": "Q16",
+    "category": "answerable",
+    "question": "هل يجوز تشغيل الأحداث في الأعمال الخطرة؟",
+    "expected_display_names": [
+      "المادة 161"
+    ],
+    "notes": "حظر تشغيل الأحداث بالأعمال الخطرة"
+  },
+  {
+    "id": "Q17",
+    "category": "answerable",
+    "question": "كم مدة إجازة الحج التي يستحقها العامل؟",
+    "expected_display_names": [
+      "المادة 114"
+    ],
+    "notes": "10-15 يوم لأداء الحج"
+  },
+  {
+    "id": "Q18",
+    "category": "answerable",
+    "question": "ما التزام صاحب العمل تجاه نظافة المنشأة وسلامتها؟",
+    "expected_display_names": [
+      "المادة 121"
+    ],
+    "notes": "الوقاية والسلامة"
+  },
+  {
+    "id": "Q19",
+    "category": "answerable",
+    "question": "هل تستحق العاملة إجازة عند وفاة زوجها وكم مدتها؟",
+    "expected_display_names": [
+      "المادة 160"
+    ],
+    "notes": "15 يوم"
+  },
+  {
+    "id": "Q20",
+    "category": "answerable",
+    "question": "متى يجوز لصاحب العمل فسخ العقد دون مكافأة أو إشعار؟",
+    "expected_display_names": [
+      "المادة 80"
+    ],
+    "notes": "رصد تلوث م182 البحري"
+  },
+  {
+    "id": "Q21",
+    "category": "answerable",
+    "question": "ما تعريف عقد العمل في النظام؟",
+    "expected_display_names": [
+      "المادة 50"
+    ],
+    "notes": "تعريف عقد العمل"
+  },
+  {
+    "id": "Q22",
+    "category": "answerable",
+    "question": "بأي عملة يجب دفع أجر العامل؟",
+    "expected_display_names": [
+      "المادة 90"
+    ],
+    "notes": "العملة الرسمية"
+  },
+  {
+    "id": "Q23",
+    "category": "answerable",
+    "question": "إذا قدمت استقالتي ولم يرد صاحب العمل خلال ثلاثين يوماً هل تُقبل؟",
+    "expected_display_names": [
+      "المادة 79 مكرر"
+    ],
+    "notes": "حالة المكرر المقصودة - تمييز عن م79 الأصلية"
+  },
+  {
+    "id": "Q24",
+    "category": "answerable",
+    "question": "هل يجوز لصاحب العمل تكليفي بعمل يختلف جوهرياً عن المتفق عليه؟",
+    "expected_display_names": [
+      "المادة 60"
+    ],
+    "notes": "تغيير طبيعة العمل"
+  },
+  {
+    "id": "Q25",
+    "category": "answerable",
+    "question": "ما الجزاءات التأديبية التي يجوز توقيعها على العامل؟",
+    "expected_display_names": [
+      "المادة 66"
+    ],
+    "notes": "إنذار/غرامة/حرمان"
+  },
+  {
+    "id": "Q26",
+    "category": "answerable",
+    "question": "كيف يُنهى العقد غير محدد المدة؟",
+    "expected_display_names": [
+      "المادة 75"
+    ],
+    "notes": "الإشعار + سبب مشروع"
+  },
+  {
+    "id": "Q27",
+    "category": "answerable",
+    "question": "في أي الأعمال يُحظر تشغيل المرأة؟",
+    "expected_display_names": [
+      "المادة 149"
+    ],
+    "notes": "الأعمال الخطرة"
+  },
+  {
+    "id": "Q28",
+    "category": "answerable",
+    "question": "هل يلزم صاحب العمل بتوفير وسائل انتقال في الأماكن البعيدة عن العمران؟",
+    "expected_display_names": [
+      "المادة 148"
+    ],
+    "notes": "النقل الجماعي"
+  },
+  {
+    "id": "Q29",
+    "category": "unanswerable",
+    "question": "كم ضريبة الدخل على راتب الموظف في السعودية؟",
+    "expected_display_names": [],
+    "notes": "لا ضريبة دخل - خارج النظام"
+  },
+  {
+    "id": "Q30",
+    "category": "unanswerable",
+    "question": "ما عقوبة تجاوز السرعة على الطريق السريع؟",
+    "expected_display_names": [],
+    "notes": "نظام المرور"
+  },
+  {
+    "id": "Q31",
+    "category": "unanswerable",
+    "question": "كيف أرفع دعوى إيجارية ضد مالك العقار؟",
+    "expected_display_names": [],
+    "notes": "نظام إيجار/محاكم"
+  },
+  {
+    "id": "Q32",
+    "category": "unanswerable",
+    "question": "ما شروط الحصول على تأشيرة سياحية للسعودية؟",
+    "expected_display_names": [],
+    "notes": "حكومي لكن خارج نظام العمل"
+  },
+  {
+    "id": "Q33",
+    "category": "unanswerable",
+    "question": "كم نسبة مساهمة التأمينات الاجتماعية من الراتب؟",
+    "expected_display_names": [],
+    "notes": "قريب خطير - نظام التأمينات لا العمل"
+  },
+  {
+    "id": "Q34",
+    "category": "unanswerable",
+    "question": "ما راتب مهندس البرمجيات المبتدئ في السوق السعودي؟",
+    "expected_display_names": [],
+    "notes": "قريب خطير - النظام لا يحدد رواتب سوق"
+  },
+  {
+    "id": "Q35",
+    "category": "unanswerable",
+    "question": "هل يحق لي استرداد ضريبة القيمة المضافة كسائح؟",
+    "expected_display_names": [],
+    "notes": "نظام ضريبي"
+  },
+  {
+    "id": "Q36",
+    "category": "calculation",
+    "question": "فصلني صاحب العمل، راتبي 10000 وخدمتي 7 سنوات، كم مكافأتي؟",
+    "expected_display_names": [],
+    "expected_reason": "termination",
+    "expected_result": 45000.0,
+    "notes": "فصل - م84 كاملة"
+  },
+  {
+    "id": "Q37",
+    "category": "calculation",
+    "question": "استقلت، راتبي 8000 وخدمتي 4 سنوات، كم أستحق؟",
+    "expected_display_names": [],
+    "expected_reason": "resignation",
+    "expected_result": 5333.33,
+    "notes": "استقالة [2..5] الثلث"
+  },
+  {
+    "id": "Q38",
+    "category": "calculation",
+    "question": "استقلت براتب 6000 بعد 8 سنوات خدمة، كم مكافأتي؟",
+    "expected_display_names": [],
+    "expected_reason": "resignation",
+    "expected_result": 22000.0,
+    "notes": "استقالة (5..10) الثلثان"
+  },
+  {
+    "id": "Q39",
+    "category": "calculation",
+    "question": "استقلت وراتبي 5000 وخدمتي 12 سنة، كم المكافأة؟",
+    "expected_display_names": [],
+    "expected_reason": "resignation",
+    "expected_result": 47500.0,
+    "notes": "استقالة >=10 كامل"
+  },
+  {
+    "id": "Q40",
+    "category": "calculation",
+    "question": "استقلت بعد سنة واحدة براتب 7000، هل لي مكافأة؟",
+    "expected_display_names": [],
+    "expected_reason": "resignation",
+    "expected_result": 0.0,
+    "notes": "استقالة <2 لا شيء"
+  }
+]
