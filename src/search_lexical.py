@@ -7,7 +7,8 @@ from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
-CHUNKS_PATH = Path("data/processed/chunks.json")
+_ROOT = Path(__file__).resolve().parent.parent
+CHUNKS_PATH = _ROOT / "data" / "processed" / "chunks.json"
 
 _ALEF = re.compile(r"[إأآا]")
 _HARAKAT = re.compile(r"[\u064B-\u0652\u0670]")

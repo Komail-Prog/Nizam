@@ -4,7 +4,9 @@ Nizam — Phase 2: Semantic search over the e5 / ChromaDB index.
 import chromadb
 from sentence_transformers import SentenceTransformer
 
-DB_DIR = "chroma_db"
+from pathlib import Path
+_ROOT = Path(__file__).resolve().parent.parent
+DB_DIR = str(_ROOT / "chroma_db")
 COLLECTION = "labor_law"
 MODEL_NAME = "intfloat/multilingual-e5-base"
 
