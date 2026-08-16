@@ -5,3 +5,5 @@ __pycache__/
 chroma_db/
 .DS_Store
 docs/dev-log/
+later.md
+docs/eval/refusal_results_OLD_premerge.json
