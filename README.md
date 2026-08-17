@@ -1,26 +1,15 @@
----
-title: Nizam
-emoji: ⚖️
-colorFrom: green
-colorTo: gray
-sdk: gradio
-sdk_version: 6.24.0
-app_file: app.py
-pinned: false
-license: mit
-short_description: Arabic RAG for Saudi Labor Law with citations
----
-
 # نظام · Nizam
 
 **نظام** مساعد عربي يجيب عن أسئلة **نظام العمل السعودي** بالاستناد إلى المادة النظامية الدقيقة، ويرفض صراحةً ما هو خارج النطاق بدل أن يخمّن.
 
 **Nizam** is an Arabic RAG assistant that answers questions about **Saudi Labor Law**, grounding every answer in the exact source article — and explicitly refusing out-of-scope questions instead of hallucinating.
 
-🔗 **الديمو الحي · Live demo:** https://huggingface.co/spaces/Komail262/Nizam
+🔗 **الديمو الحي · Live demo:** https://nizam-labor-law.streamlit.app
 
 > ⚠️ النتائج استرشادية للاطلاع فقط — وليست استشارة قانونية.
 > Results are informational only — not legal advice.
+
+![لقطة من نظام](docs/screenshot.png)
 
 ---
 
@@ -40,7 +29,7 @@ short_description: Arabic RAG for Saudi Labor Law with citations
 | Chunking | وحدة التقطيع = المادة النظامية؛ كل chunk يحمل `{article_number, bab, text}` |
 | Generation | Gemini 2.5 Flash، مقيّد بالمواد المسترجَعة عبر بوابة استشهاد ثلاثية الحرّاس |
 | Tool | Function calling — حاسبة مكافأة نهاية الخدمة (نداء Gemini واحد يفرّع: أداة أو إجابة مستشهدة) |
-| UI | Gradio (عربي RTL) على Hugging Face Spaces |
+| UI | Streamlit (عربي RTL) على Streamlit Community Cloud |
 
 بوابة الاستشهاد ترفض الإجابة إذا: قال النموذج إنه لا يستطيع، أو لم يستشهد بأي مادة، أو استشهد بمادة غير موجودة في المسترجَع (منع الهلوسة).
 
@@ -72,7 +61,7 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 export GEMINI_API_KEY="your-key"  # Windows: $env:GEMINI_API_KEY="your-key"
-python app.py
+streamlit run app.py
 ```
 
 > **حصة الديمو:** المفتاح المجاني لـ Gemini محدود بـ 20 طلباً/يوم، مشتركة بين زوّار الديمو الحي. عند النفاد، يعرض النظام رسالة مهذّبة بدل خطأ.
