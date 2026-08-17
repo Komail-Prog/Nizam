@@ -8,7 +8,7 @@ sdk_version: 6.24.0
 app_file: app.py
 pinned: false
 license: mit
-short_description: Arabic RAG assistant for Saudi Labor Law with article-level citations
+short_description: Arabic RAG for Saudi Labor Law with citations
 ---
 
 # نظام · Nizam
