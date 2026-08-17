@@ -1,5 +1,5 @@
 # app.py — واجهة نظام (Nizam): مساعد نظام العمل السعودي
-# طبقة عرض Gradio عربية RTL. تستهلك answer_gated_merged كصندوق أسود.
+# غلاف عرض Streamlit عربي RTL. يستهلك answer_gated_merged كصندوق أسود.
 # لا يحتوي هذا الملف أي منطق جوهري: لا استرجاع، لا بوابة، لا حساب.
 import html
 import os
@@ -9,272 +9,312 @@ import sys
 # src على الـ path حتى تعمل استيرادات generator المسطّحة (from retriever import ...)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-import gradio as gr
+import streamlit as st
 
-# استيراد واحد عند الإقلاع — يحمّل e5 + ChromaDB مرة واحدة ويبقى محمّلاً.
-# Gradio لا يعيد تشغيل السكربت مع كل تفاعل، فلا حاجة لأي تخزين مؤقّت.
-from generator import answer_gated_merged, REFUSAL_MESSAGE
+st.set_page_config(
+    page_title="نظام — مساعد نظام العمل السعودي",
+    page_icon="⚖️",
+    layout="centered",
+)
 
-# ==================== الأسئلة الجاهزة ====================
+# ==================== التنسيق (RTL + هوية بصرية + تثبيت الوضع الفاتح) ====================
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=Noto+Kufi+Arabic:wght@400;700&display=swap');
+
+    :root {
+        --nizam-green: #0B5D3B;
+        --nizam-green-soft: #E8F2ED;
+        --nizam-ink: #1A1A1A;
+        --nizam-muted: #5A6B63;
+    }
+
+    /* إخفاء كروم Streamlit: زر Deploy، القائمة، شريط الأدوات، الفوتر.
+       ملاحظة: لا نصفّر ارتفاع الهيدر (يسبب قصّاً علوياً) — نجعله شفافاً فقط. */
+    #MainMenu, footer, [data-testid="stToolbar"],
+    [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+    .stDeployButton, [data-testid="stAppDeployButton"] { display: none !important; }
+    header[data-testid="stHeader"] { background: transparent !important; }
+
+    /* خلفية بيضاء ثابتة — لا تتأثر بوضع dark عند الزائر */
+    .stApp, body, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
+        background: #FFFFFF !important;
+        color: var(--nizam-ink) !important;
+    }
+
+    /* اتجاه عربي كامل */
+    .stApp, body, .block-container {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Tajawal', 'Noto Kufi Arabic', 'Segoe UI', sans-serif;
+    }
+
+    /* عمود متمركز أفقياً مع مساحة علوية مريحة */
+    .block-container {
+        max-width: 760px;
+        margin: 0 auto;
+        padding-top: 3rem;
+        padding-bottom: 4rem;
+    }
+
+    /* الرأس */
+    .nizam-header { text-align: center; margin-bottom: 1.4rem; }
+    .nizam-title {
+        font-family: 'Noto Kufi Arabic', 'Tajawal', sans-serif;
+        font-size: 3rem; font-weight: 700; color: var(--nizam-green);
+        margin: 0 0 0.4rem 0; line-height: 1.3;
+    }
+    .nizam-subtitle {
+        font-size: 1.02rem; color: var(--nizam-muted); margin: 0;
+        font-weight: 400; line-height: 1.9;
+    }
+
+    /* إخلاء المسؤولية — بند إلزامي، بارز */
+    .nizam-disclaimer {
+        background: #FFF7E6; border: 1px solid #F0D9A0;
+        border-right: 5px solid #E6A700;
+        color: #7A5A00; padding: 0.85rem 1.1rem; border-radius: 10px;
+        font-size: 0.95rem; font-weight: 500; margin: 0 0 1.8rem 0;
+        text-align: center;
+    }
+
+    .nizam-label {
+        color: var(--nizam-muted); font-size: 0.92rem;
+        font-weight: 500; margin-bottom: 0.45rem;
+    }
+
+    /* أزرار الأسئلة الجاهزة + زر اسأل */
+    div.stButton > button, div.stFormSubmitButton > button {
+        width: 100%; border-radius: 10px; border: 1px solid #DDE3E0;
+        background: #FFFFFF; color: var(--nizam-ink);
+        font-family: 'Tajawal', sans-serif; font-size: 0.94rem;
+        padding: 0.55rem 0.4rem; transition: all 0.15s ease;
+    }
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
+        border-color: var(--nizam-green); color: var(--nizam-green);
+        background: var(--nizam-green-soft);
+    }
+    /* زر «اسأل» أساسي */
+    div.stFormSubmitButton > button {
+        background: var(--nizam-green); color: #FFFFFF;
+        border-color: var(--nizam-green); font-weight: 700;
+    }
+    div.stFormSubmitButton > button:hover {
+        background: #094B30; color: #FFFFFF; border-color: #094B30;
+    }
+
+    /* حقل الإدخال RTL */
+    .stTextInput input {
+        direction: rtl; text-align: right;
+        font-family: 'Tajawal', sans-serif; font-size: 1rem;
+        border-radius: 10px; background: #FFFFFF; color: var(--nizam-ink);
+    }
+    .stTextInput input:focus { border-color: var(--nizam-green) !important; }
+
+    /* شارة المسار */
+    .nizam-badge {
+        display: inline-block; padding: 0.3rem 0.9rem; border-radius: 20px;
+        font-size: 0.86rem; font-weight: 500; margin-bottom: 0.7rem;
+    }
+    .badge-tool   { background: #E8F2ED; color: #0B5D3B; }
+    .badge-cite   { background: #E7F0FA; color: #12507E; }
+    .badge-refuse { background: #FBEAEA; color: #9B2C2C; }
+
+    /* صندوق الإجابة */
+    .nizam-answer {
+        background: #FAFBFA; border: 1px solid #E6EBE8; border-radius: 12px;
+        padding: 1.2rem 1.4rem; font-size: 1.06rem; line-height: 2.05;
+        color: var(--nizam-ink);
+    }
+    .nizam-question {
+        color: var(--nizam-muted); font-size: 0.95rem; margin-bottom: 0.8rem;
+    }
+    .nizam-question b { color: var(--nizam-ink); font-weight: 700; }
+
+    /* الاستشهادات */
+    .stExpander { direction: rtl; text-align: right; border-radius: 10px; }
+    .nizam-cite-num {
+        color: var(--nizam-green); font-weight: 700; font-size: 0.98rem;
+        margin-bottom: 0.25rem;
+    }
+    .nizam-cite-text {
+        color: #444; line-height: 1.95; font-size: 0.95rem;
+        padding-bottom: 0.9rem; margin-bottom: 0.9rem;
+        border-bottom: 1px solid #EEE;
+    }
+
+    .nizam-footer {
+        text-align: center; color: #9AA5A0; font-size: 0.82rem;
+        margin-top: 3rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ==================== المفتاح: أسرار Streamlit Cloud → متغيّرات البيئة ====================
+# generator يقرأ os.environ["GEMINI_API_KEY"] عند الاستيراد. على Streamlit Cloud
+# يُضاف المفتاح عبر Settings→Secrets. نجسره هنا صراحةً بدل الاتّكال على تصدير تلقائي.
+# محلياً لا يوجد ملف أسرار، فيتكفّل load_dotenv() داخل generator بقراءة .env.
+try:
+    if "GEMINI_API_KEY" in st.secrets:
+        os.environ.setdefault("GEMINI_API_KEY", str(st.secrets["GEMINI_API_KEY"]))
+except Exception:
+    pass
+
+
+# ==================== تحميل المعمارية (مرة واحدة عبر كل الجلسات) ====================
+@st.cache_resource(show_spinner="جارٍ تحميل النموذج والفهرس…")
+def _load_engine():
+    """أول استيراد يحمّل e5 + ChromaDB داخل generator/retriever."""
+    from generator import answer_gated_merged, REFUSAL_MESSAGE
+
+    return answer_gated_merged, REFUSAL_MESSAGE
+
+
+@st.cache_data(show_spinner=False, ttl=3600, max_entries=64)
+def _ask(query: str) -> dict:
+    """نداء واحد لكل سؤال فريد. التخزين المؤقّت يحمي حصة Gemini اليومية:
+    تكرار نفس السؤال لا يصرف نداءً جديداً (الحرارة 0.0 → النتيجة حتمية)."""
+    engine, _ = _load_engine()
+    return engine(query)
+
+
+try:
+    _, REFUSAL_MESSAGE = _load_engine()
+except KeyError:
+    st.error("مفتاح GEMINI_API_KEY غير مضبوط. أضِفه في Settings → Secrets بصيغة: "
+             'GEMINI_API_KEY = "..."')
+    st.stop()
+except Exception:
+    st.error("تعذّر تحميل النموذج أو الفهرس. تأكّد من اكتمال سحب chroma_db عبر Git LFS.")
+    st.stop()
+
+
+# ==================== أدوات عرض ====================
+def _to_html(text: str) -> str:
+    """الإجابات تعود بصيغة ماركداون خفيفة (**عريض** وأسطر جديدة).
+    نهرّب HTML أولاً ثم نحوّل — حتى تظهر داخل صندوق منسّق دون رموز نيئة."""
+    out = html.escape(str(text))
+    out = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", out, flags=re.DOTALL)
+    return out.replace("\n", "<br>")
+
+
+# ==================== الرأس ====================
+st.markdown(
+    """
+    <div class="nizam-header">
+        <div class="nizam-title">نظام</div>
+        <p class="nizam-subtitle">مساعد يجيب عن أسئلة نظام العمل السعودي بالاستناد إلى المادة النظامية</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    '<div class="nizam-disclaimer">⚠️ النتائج استرشادية للاطلاع فقط — وليست استشارة قانونية.</div>',
+    unsafe_allow_html=True,
+)
+
+# ==================== حالة الجلسة ====================
+st.session_state.setdefault("query_box", "")
+st.session_state.setdefault("pending", None)  # سؤال بانتظار التنفيذ (يُستهلك مرة واحدة)
+st.session_state.setdefault("result", None)  # آخر نتيجة معروضة
+
+# ==================== الأسئلة الجاهزة — تُعبّئ الحقل فقط، لا تُنفّذ ====================
 SAMPLES = [
     ("🧮 حساب مكافأة", "فصلني صاحب العمل، راتبي 10000 وخدمتي 7 سنوات، كم مكافأتي؟"),
     ("📚 سؤال عام", "كم مدة إجازة الوضع للمرأة العاملة؟"),
     ("✅ خارج النطاق", "ما عقوبة تجاوز السرعة على الطريق السريع؟"),
 ]
 
-QUOTA_MESSAGE = (
-    "بلغ الديمو حدّه اليومي من الطلبات المجانية. "
-    "جرّب مرة أخرى بعد عدة ساعات — أو شاهد الأمثلة في فيديو العرض بصفحة المشروع."
-)
+st.markdown('<div class="nizam-label">جرّب سؤالاً جاهزاً — ثم اضغط «اسأل»:</div>', unsafe_allow_html=True)
+for col, (label, sample) in zip(st.columns(3), SAMPLES):
+    if col.button(label, key=f"sample_{label}", use_container_width=True):
+        st.session_state.query_box = sample
+        st.rerun()
 
-
-# ==================== أدوات عرض ====================
-def _to_html(text: str) -> str:
-    """الإجابات تعود بصيغة ماركداون خفيفة (**عريض** وأسطر جديدة).
-    نهرّب HTML أولاً ثم نحوّل — حتى تظهر منسّقة دون تمرير وسوم من نص النموذج."""
-    out = html.escape(str(text))
-    out = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", out, flags=re.DOTALL)
-    return out.replace("\n", "<br>")
-
-
-def _panel(badge_class: str, badge_text: str, body_html: str) -> str:
-    """شارة المسار + نص الإجابة داخل بطاقة واحدة."""
-    return (
-        f'<span class="nizam-badge {badge_class}">{badge_text}</span>'
-        f'<div class="nizam-answer">{body_html}</div>'
-    )
-
-
-def _citations_html(citations: list) -> str:
-    parts = []
-    for cite in citations:
-        number = html.escape(str(cite.get("article_number", "؟")))
-        parts.append(
-            f'<div class="nizam-cite-num">المادة {number}</div>'
-            f'<div class="nizam-cite-text">{_to_html(cite.get("text", ""))}</div>'
-        )
-    return "".join(parts)
-
-
-# ==================== المعالج ====================
-def ask(query: str):
-    """يُستدعى عند ضغط «اسأل» فقط. يرجع: (بطاقة الإجابة، الاستشهادات، حالة القسم)."""
-    question = (query or "").strip()
-    if not question:
-        return (
-            _panel("badge-refuse", "✍️ لا يوجد سؤال",
-                   "اكتب سؤالك في الحقل أعلاه، أو اختر سؤالاً جاهزاً ثم اضغط «اسأل»."),
-            "",
-            gr.update(visible=False),
-        )
-
-    try:
-        res = answer_gated_merged(question)
-    except RuntimeError:
-        # استُنفدت المحاولات (429) — الحصة اليومية. رسالة موجِّهة، لا traceback.
-        return (
-            _panel("badge-refuse", "⏳ الحصة اليومية", QUOTA_MESSAGE),
-            "",
-            gr.update(visible=False),
-        )
-    except Exception:
-        return (
-            _panel("badge-refuse", "⚠️ تعذّر الإكمال",
-                   "تعذّر إكمال الطلب حالياً. أعد المحاولة بعد قليل."),
-            "",
-            gr.update(visible=False),
-        )
-
-    # مسار الرفض
-    if not res.get("answered", False):
-        return (
-            _panel("badge-refuse", "↩︎ خارج النطاق",
-                   _to_html(res.get("message", REFUSAL_MESSAGE))),
-            "",
-            gr.update(visible=False),
-        )
-
-    # إجابة — الشارة حسب المسار
-    if res.get("path") == "tool":
-        badge_class, badge_text = "badge-tool", "🧮 نتيجة حاسبة"
-    else:
-        badge_class, badge_text = "badge-cite", "📚 إجابة مستشهدة"
-
-    panel = _panel(badge_class, badge_text, _to_html(res.get("answer", "")))
-
-    citations = res.get("citations") or []
-    if not citations:
-        return panel, "", gr.update(visible=False)
-
-    return (
-        panel,
-        _citations_html(citations),
-        gr.update(visible=True, label=f"📎 المواد النظامية المستند إليها ({len(citations)})"),
-    )
-
-
-# ==================== التنسيق ====================
-CSS = """
-:root {
-    --nizam-green: #0B5D3B;
-    --nizam-green-soft: #E8F2ED;
-    --nizam-ink: #1A1A1A;
-    --nizam-muted: #5A6B63;
-}
-
-/* عمود متمركز + اتجاه عربي كامل + خلفية فاتحة */
-.gradio-container {
-    direction: rtl !important;
-    font-family: 'Tajawal', 'Noto Kufi Arabic', 'Segoe UI', sans-serif !important;
-    max-width: 820px !important;
-    margin: 0 auto !important;
-    background: #FFFFFF !important;
-    color: var(--nizam-ink) !important;
-    padding-top: 1.5rem !important;
-}
-.gradio-container * { font-family: inherit; }
-footer { display: none !important; }
-
-/* الرأس */
-#nizam-header { text-align: center; margin-bottom: 1.2rem; }
-#nizam-header .nizam-title {
-    font-family: 'Noto Kufi Arabic', 'Tajawal', sans-serif;
-    font-size: 3rem; font-weight: 700; color: var(--nizam-green);
-    margin: 0 0 0.4rem 0; line-height: 1.3;
-}
-#nizam-header .nizam-subtitle {
-    font-size: 1.02rem; color: var(--nizam-muted); margin: 0; line-height: 1.9;
-}
-
-/* إخلاء المسؤولية — بند إلزامي، بارز */
-#nizam-disclaimer .nizam-disclaimer {
-    background: #FFF7E6; border: 1px solid #F0D9A0;
-    border-right: 5px solid #E6A700;
-    color: #7A5A00; padding: 0.85rem 1.1rem; border-radius: 10px;
-    font-size: 0.95rem; font-weight: 500; text-align: center;
-    margin-bottom: 1.4rem;
-}
-
-.nizam-hint { color: var(--nizam-muted); font-size: 0.92rem; margin-bottom: 0.3rem; }
-
-/* الأزرار */
-button.nizam-sample {
-    border-radius: 10px !important; border: 1px solid #DDE3E0 !important;
-    background: #FFFFFF !important; color: var(--nizam-ink) !important;
-    font-size: 0.94rem !important; font-weight: 500 !important;
-}
-button.nizam-sample:hover {
-    border-color: var(--nizam-green) !important; color: var(--nizam-green) !important;
-    background: var(--nizam-green-soft) !important;
-}
-button.nizam-ask {
-    background: var(--nizam-green) !important; color: #FFFFFF !important;
-    border: 1px solid var(--nizam-green) !important;
-    font-weight: 700 !important; border-radius: 10px !important;
-}
-button.nizam-ask:hover { background: #094B30 !important; border-color: #094B30 !important; }
-
-/* حقل الإدخال */
-#nizam-input textarea, #nizam-input input {
-    direction: rtl !important; text-align: right !important;
-    font-size: 1rem !important; border-radius: 10px !important;
-    background: #FFFFFF !important; color: var(--nizam-ink) !important;
-}
-
-/* شارة المسار */
-.nizam-badge {
-    display: inline-block; padding: 0.3rem 0.9rem; border-radius: 20px;
-    font-size: 0.86rem; font-weight: 500; margin-bottom: 0.7rem;
-}
-.badge-tool   { background: #E8F2ED; color: #0B5D3B; }
-.badge-cite   { background: #E7F0FA; color: #12507E; }
-.badge-refuse { background: #FBEAEA; color: #9B2C2C; }
-
-/* بطاقة الإجابة */
-.nizam-answer {
-    background: #FAFBFA; border: 1px solid #E6EBE8; border-radius: 12px;
-    padding: 1.2rem 1.4rem; font-size: 1.06rem; line-height: 2.05;
-    color: var(--nizam-ink);
-}
-
-/* الاستشهادات */
-.nizam-cite-num {
-    color: var(--nizam-green); font-weight: 700; font-size: 0.98rem;
-    margin-bottom: 0.25rem;
-}
-.nizam-cite-text {
-    color: #444; line-height: 1.95; font-size: 0.95rem;
-    padding-bottom: 0.9rem; margin-bottom: 0.9rem; border-bottom: 1px solid #EEE;
-}
-
-#nizam-footer { text-align: center; color: #9AA5A0; font-size: 0.82rem; margin-top: 2rem; }
-"""
-
-HEAD = (
-    '<link rel="preconnect" href="https://fonts.googleapis.com">'
-    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?'
-    'family=Tajawal:wght@400;500;700&family=Noto+Kufi+Arabic:wght@400;700&display=swap">'
-)
-
-# تثبيت الوضع الفاتح مهما كان إعداد الزائر
-FORCE_LIGHT_JS = """
-() => {
-    const url = new URL(window.location);
-    if (url.searchParams.get('__theme') !== 'light') {
-        url.searchParams.set('__theme', 'light');
-        window.location.replace(url.href);
-    }
-}
-"""
-
-
-# ==================== بناء الواجهة ====================
-with gr.Blocks(title="نظام — مساعد نظام العمل السعودي", analytics_enabled=False) as demo:
-    gr.HTML(
-        '<div class="nizam-title">نظام</div>'
-        '<p class="nizam-subtitle">مساعد يجيب عن أسئلة نظام العمل السعودي '
-        "بالاستناد إلى المادة النظامية</p>",
-        elem_id="nizam-header",
-    )
-    gr.HTML(
-        '<div class="nizam-disclaimer">⚠️ النتائج استرشادية للاطلاع فقط '
-        "— وليست استشارة قانونية.</div>",
-        elem_id="nizam-disclaimer",
-    )
-
-    gr.HTML('<div class="nizam-hint">جرّب سؤالاً جاهزاً — ثم اضغط «اسأل»:</div>')
-    with gr.Row():
-        sample_buttons = [
-            gr.Button(label, elem_classes="nizam-sample") for label, _ in SAMPLES
-        ]
-
-    query_box = gr.Textbox(
-        label="سؤالك",
+# ==================== الإدخال الحر ====================
+with st.form("nizam_form", clear_on_submit=False, border=False):
+    st.text_input(
+        "سؤالك:",
+        key="query_box",
         placeholder="مثال: متى يحق لصاحب العمل فسخ العقد دون مكافأة؟",
-        lines=2,
-        elem_id="nizam-input",
+        label_visibility="collapsed",
     )
-    ask_button = gr.Button("اسأل", variant="primary", elem_classes="nizam-ask")
+    if st.form_submit_button("اسأل", use_container_width=True):
+        typed = st.session_state.query_box.strip()
+        if typed:
+            st.session_state.pending = typed
 
-    answer_html = gr.HTML()
-    with gr.Accordion("📎 المواد النظامية المستند إليها", open=False, visible=False) as cites_box:
-        citations_html = gr.HTML()
+# ==================== التنفيذ: مرّة واحدة لكل ضغطة، لا عند إعادة الرسم ====================
+if st.session_state.pending:
+    question = st.session_state.pending
+    st.session_state.pending = None  # استهلاك فوري — يمنع إعادة النداء عند أي rerun
+    with st.spinner("جارٍ البحث في نظام العمل…"):
+        try:
+            st.session_state.result = {"q": question, "status": "ok", "res": _ask(question)}
+        except RuntimeError:
+            # استُنفدت المحاولات (429) — الحصة اليومية
+            st.session_state.result = {"q": question, "status": "quota"}
+        except Exception as exc:
+            st.session_state.result = {"q": question, "status": "error", "err": type(exc).__name__}
 
-    gr.HTML(
-        "نظام · مشروع استرشادي لنظام العمل السعودي · للاطلاع فقط",
-        elem_id="nizam-footer",
+# ==================== العرض ====================
+state = st.session_state.result
+if state:
+    st.markdown("---")
+    st.markdown(
+        f'<div class="nizam-question"><b>السؤال:</b> {html.escape(state["q"])}</div>',
+        unsafe_allow_html=True,
     )
 
-    # أزرار الأسئلة تملأ الحقل فقط — لا تنفّذ. ضغطة عابرة لا تصرف من الحصة.
-    for button, (_, sample) in zip(sample_buttons, SAMPLES):
-        button.click(lambda s=sample: s, inputs=None, outputs=query_box)
+    if state["status"] == "quota":
+        st.markdown(
+            '<span class="nizam-badge badge-refuse">⏳ الحصة اليومية</span>'
+            '<div class="nizam-answer">بلغ الديمو حدّه اليومي من الطلبات المجانية. '
+            'جرّب مرة أخرى بعد عدة ساعات — أو شاهد الأمثلة في فيديو العرض بصفحة المشروع.</div>',
+            unsafe_allow_html=True,
+        )
+    elif state["status"] == "error":
+        st.markdown(
+            '<span class="nizam-badge badge-refuse">⚠️ تعذّر الإكمال</span>'
+            '<div class="nizam-answer">تعذّر إكمال الطلب حالياً. أعد المحاولة بعد قليل.</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        res = state["res"]
 
-    outputs = [answer_html, citations_html, cites_box]
-    ask_button.click(ask, inputs=query_box, outputs=outputs)
-    query_box.submit(ask, inputs=query_box, outputs=outputs)
+        if not res.get("answered", False):
+            st.markdown(
+                '<span class="nizam-badge badge-refuse">↩︎ خارج النطاق</span>'
+                f'<div class="nizam-answer">{_to_html(res.get("message", REFUSAL_MESSAGE))}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            badge = (
+                '<span class="nizam-badge badge-tool">🧮 نتيجة حاسبة</span>'
+                if res.get("path") == "tool"
+                else '<span class="nizam-badge badge-cite">📚 إجابة مستشهدة</span>'
+            )
+            st.markdown(
+                f'{badge}<div class="nizam-answer">{_to_html(res.get("answer", ""))}</div>',
+                unsafe_allow_html=True,
+            )
 
+            citations = res.get("citations") or []
+            if citations:
+                with st.expander(f"📎 المواد النظامية المستند إليها ({len(citations)})"):
+                    for cite in citations:
+                        st.markdown(
+                            f'<div class="nizam-cite-num">المادة {html.escape(str(cite.get("article_number", "؟")))}</div>'
+                            f'<div class="nizam-cite-text">{_to_html(cite.get("text", ""))}</div>',
+                            unsafe_allow_html=True,
+                        )
 
-if __name__ == "__main__":
-    # ملاحظة Gradio 6: css/theme/js/head تُمرَّر إلى launch() لا إلى Blocks().
-    demo.launch(css=CSS, head=HEAD, js=FORCE_LIGHT_JS, theme=gr.themes.Soft())
+st.markdown(
+    '<div class="nizam-footer">نظام · مشروع استرشادي لنظام العمل السعودي · للاطلاع فقط</div>',
+    unsafe_allow_html=True,
+)
